@@ -19,6 +19,7 @@ servo.start(0)  # Initial position of the servo
 
 # Flag to control servo behavior
 motion_detected = False
+servo_angle = 0  # Last known angle of the servo motor
     
 # Interrupt function
 def motion_detected_callback(channel):
@@ -29,26 +30,22 @@ def motion_detected_callback(channel):
 GPIO.add_event_detect(pir_pin, GPIO.RISING, callback=motion_detected_callback,bouncetime=200)
 
 def move_servo_smooth(angle):
-    duty = angle / 18 + 2
-    servo.ChangeDutyCycle(duty)
+    duty_cycle = angle / 18 + 2
+    servo.ChangeDutyCycle(duty_cycle)
     time.sleep(0.05)
     
 def servo_control():
-    global motion_detected
-    last_angle = 0        # Store the last known angle of the servo
+    global motion_detected, servo_angle
     while True:
         if motion_detected:
             print("Motion detected!")
-            last_angle = servo_angle  # Store the current angle before stopping
-            servo.stop()  # Stop the servo motor
+            servo.ChangeDutyCycle(0)  # Stop the servo motor
             time.sleep(5)  # Wait for 5 seconds
             motion_detected = False  # Reset the flag
-            move_servo_smooth(last_angle)  # Move servo to the last known angle
-            servo.start(0)  # Start the servo motor        
-            time.sleep(0.5)  # Wait for the servo to start
-            #move_servo_smooth(last_angle)  # Move servo to the last known angle
-        time.sleep(1)
-        
+            
+        if servo_angle > 0:
+            move_servo_smooth(servo_angle)
+                    
 # Create a new thread for servo control
 servo_thread = threading.Thread(target=servo_control)
 servo_thread.daemon = True
@@ -59,12 +56,14 @@ try:
     while True:
         for angle in range(0, 181, 5):
             servo_angle = angle
-            move_servo_smooth(angle)
+            time.sleep(0.05)  # Delay for smooth movement
+            #move_servo_smooth(angle)
 
         # Move servo back to 0 degrees
         for angle in range(180, -1, -5):
             servo_angle = angle
-            move_servo_smooth(angle)
+            time.sleep(0.05)  # Delay for smooth movement
+            #move_servo_smooth(angle)
 
 except KeyboardInterrupt:
     servo.stop()
